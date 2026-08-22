@@ -8,32 +8,46 @@ import SwiftUI
 
 struct MCPListTabView<ViewModel: MCPListTabViewModelProtocol>: View {
     @ObservedObject var viewModel: ViewModel
+    @State private var listSelection: UUID?
 
     var body: some View {
-        NavigationSplitView {
+        HSplitView {
             VStack(spacing: 0) {
-                List(viewModel.items, selection: viewModel.selectionBinding) { item in
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(item.title)
-                            .font(.headline)
-                        Text(viewModel.summaryText(for: item))
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                    }
-                    .padding(.vertical, 4)
-                }
-                .navigationTitle(CatalogTab.mcpList.rawValue)
+                ListActionBar(
+                    onAdd: {
+                        viewModel.addItem()
+                        listSelection = viewModel.selectedItemID
+                    },
+                    onDelete: {
+                        viewModel.deleteSelectedItem()
+                        listSelection = viewModel.selectedItemID
+                    },
+                    canDelete: !viewModel.items.isEmpty && viewModel.canDeleteSelectedItem
+                )
 
                 Divider()
 
-                ListActionBar(
-                    onAdd: viewModel.addItem,
-                    onDelete: viewModel.deleteSelectedItem,
-                    canDelete: viewModel.canDeleteSelectedItem
+                CatalogSidebarList(
+                    items: viewModel.items,
+                    selection: $listSelection,
+                    summaryText: viewModel.summaryText(for:)
                 )
+                .onAppear {
+                    listSelection = viewModel.selectedItemID
+                }
+                .onChange(of: listSelection) { _, selectedID in
+                    viewModel.selectItem(selectedID)
+                }
+                .navigationTitle(CatalogTab.mcpList.rawValue)
             }
-        } detail: {
+            .frame(
+                minWidth: 240,
+                idealWidth: 280,
+                maxWidth: 360,
+                maxHeight: .infinity,
+                alignment: .topLeading
+            )
+
             MCPListDetailView(
                 item: viewModel.draftItemBinding,
                 isEditing: viewModel.isEditingSelectedItem,
@@ -43,6 +57,7 @@ struct MCPListTabView<ViewModel: MCPListTabViewModelProtocol>: View {
                 onSave: viewModel.saveSelectedItem
             )
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 
@@ -103,7 +118,12 @@ private struct MCPListDetailView: View {
                             TextEditor(text: itemBinding.content)
                                 .font(.body)
                                 .padding(8)
-                                .frame(minHeight: 240)
+                                .frame(
+                                    minWidth: 0,
+                                    maxWidth: .infinity,
+                                    minHeight: 240,
+                                    maxHeight: .infinity
+                                )
                                 .editableFieldContainer(isEditing: true)
                         } else {
                             ReadOnlyEditorView(
@@ -119,6 +139,7 @@ private struct MCPListDetailView: View {
             }
         } else {
             ContentUnavailableView("項目を選択してください", systemImage: "sidebar.left")
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
 }

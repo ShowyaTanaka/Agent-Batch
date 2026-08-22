@@ -77,6 +77,45 @@ struct ReadOnlyEditorView: View {
     }
 }
 
+struct CatalogSidebarList: View {
+    let items: [CatalogItem]
+    @Binding var selection: UUID?
+    let summaryText: (CatalogItem) -> String
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 0) {
+                ForEach(items) { item in
+                    Button {
+                        selection = item.id
+                    } label: {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(item.title)
+                                .font(.headline)
+                                .accessibilityIdentifier("catalog-item-title-\(item.title)")
+                            Text(summaryText(item))
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .background(
+                        selection == item.id
+                            ? Color.accentColor.opacity(0.16)
+                            : Color.clear
+                    )
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
 struct ListActionBar: View {
     let onAdd: () -> Void
     let onDelete: () -> Void
@@ -87,18 +126,22 @@ struct ListActionBar: View {
             HStack(spacing: 0) {
                 Button(action: onAdd) {
                     Image(systemName: "plus")
-                        .frame(width: 28, height: 22)
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                .accessibilityIdentifier("list-action-add")
 
                 Divider()
-                    .frame(height: 16)
+                    .frame(height: 24)
 
                 Button(action: onDelete) {
                     Image(systemName: "minus")
-                        .frame(width: 28, height: 22)
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                .accessibilityIdentifier("list-action-delete")
                 .disabled(!canDelete)
             }
             .background(

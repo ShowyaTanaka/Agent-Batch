@@ -2,20 +2,21 @@
 //  CatalogTabViewModelSupport.swift
 //  Agent_Batch
 //
-//
 
 import SwiftUI
 import Combine
 
+@MainActor
 protocol CatalogTabViewModelProtocol: ObservableObject {
     var items: [CatalogItem] { get }
     var draftItemBinding: Binding<CatalogItem?> { get }
-    var selectionBinding: Binding<UUID?> { get }
+    var selectedItemID: UUID? { get }
     var canDeleteSelectedItem: Bool { get }
     var canEditSelectedItem: Bool { get }
     var canSaveSelectedItem: Bool { get }
     var isEditingSelectedItem: Bool { get }
 
+    func selectItem(_ id: UUID?)
     func addItem()
     func deleteSelectedItem()
     func beginEditingSelectedItem()
@@ -23,30 +24,22 @@ protocol CatalogTabViewModelProtocol: ObservableObject {
     func summaryText(for item: CatalogItem) -> String
 }
 
+@MainActor
 class BaseCatalogTabViewModel: ObservableObject, CatalogTabViewModelProtocol {
     let tab: CatalogTab
     let userDefaults: any CatalogUserDefaultsStoreProtocol
-    @Published private var selectedItemID: UUID?
+
+    @Published private(set) var items: [CatalogItem]
+    @Published private(set) var selectedItemID: UUID?
     @Published private var draftItemsByID: [UUID: CatalogItem] = [:]
-    @Published private var pendingNewItemIDs: [UUID] = []
-    @Published private var editingItemIDs: [UUID] = []
+    @Published private var pendingNewItemIDs: Set<UUID> = []
+    @Published private var editingItemIDs: Set<UUID> = []
 
     init(tab: CatalogTab, userDefaults: any CatalogUserDefaultsStoreProtocol) {
         self.tab = tab
         self.userDefaults = userDefaults
+        self.items = userDefaults.items(for: tab)
         self.selectedItemID = userDefaults.selectedItemID(for: tab)
-        primeDraftIfNeeded(for: self.selectedItemID)
-    }
-
-    var items: [CatalogItem] {
-        let savedItems = userDefaults.items(for: tab)
-        let savedIDs = Set(savedItems.map(\.id))
-        let mergedSavedItems = savedItems.map { draftItemsByID[$0.id] ?? $0 }
-        let pendingItems: [CatalogItem] = pendingNewItemIDs.compactMap { id in
-            guard !savedIDs.contains(id) else { return nil }
-            return draftItemsByID[id]
-        }
-        return mergedSavedItems + pendingItems
     }
 
     var draftItemBinding: Binding<CatalogItem?> {
@@ -55,25 +48,23 @@ class BaseCatalogTabViewModel: ObservableObject, CatalogTabViewModelProtocol {
                 guard let selectedID = self.selectedItemID else {
                     return nil
                 }
-                self.primeDraftIfNeeded(for: selectedID)
                 return self.draftItemsByID[selectedID]
+                    ?? self.items.first(where: { $0.id == selectedID })
             },
             set: { updatedItem in
                 guard let updatedItem else { return }
                 self.draftItemsByID[updatedItem.id] = updatedItem
+
+                if let index = self.items.firstIndex(where: { $0.id == updatedItem.id }) {
+                    self.items[index] = updatedItem
+                }
             }
         )
     }
 
-    var selectionBinding: Binding<UUID?> {
-        Binding(
-            get: { self.selectedItemID },
-            set: {
-                self.selectedItemID = $0
-                self.userDefaults.saveSelectedItemID($0, for: self.tab)
-                self.primeDraftIfNeeded(for: $0)
-            }
-        )
+    func selectItem(_ id: UUID?) {
+        guard selectedItemID != id else { return }
+        setSelectedItemID(id)
     }
 
     var canDeleteSelectedItem: Bool {
@@ -96,52 +87,60 @@ class BaseCatalogTabViewModel: ObservableObject, CatalogTabViewModelProtocol {
 
     func addItem() {
         let newItem = makeNewItem()
+        items.append(newItem)
         draftItemsByID[newItem.id] = newItem
-        pendingNewItemIDs.append(newItem.id)
-        editingItemIDs.append(newItem.id)
-        selectedItemID = newItem.id
-        userDefaults.saveSelectedItemID(newItem.id, for: tab)
+        pendingNewItemIDs.insert(newItem.id)
+        editingItemIDs.insert(newItem.id)
+        setSelectedItemID(newItem.id)
     }
 
     func deleteSelectedItem() {
-        let currentItems = items
         guard
             let selectedID = selectedItemID,
-            let index = currentItems.firstIndex(where: { $0.id == selectedID })
+            let index = items.firstIndex(where: { $0.id == selectedID })
         else {
             return
         }
 
+
         let nextSelection: UUID?
-        if currentItems.count == 1 {
+        if items.count == 1 {
             nextSelection = nil
-        } else if index < currentItems.count - 1 {
-            nextSelection = currentItems[index + 1].id
+        } else if index < items.count - 1 {
+            nextSelection = items[index + 1].id
         } else {
-            nextSelection = currentItems[index - 1].id
+            nextSelection = items[index - 1].id
         }
 
-        var savedItems = userDefaults.items(for: tab)
-        if let savedIndex = savedItems.firstIndex(where: { $0.id == selectedID }) {
-            savedItems.remove(at: savedIndex)
+        let isPendingNewItem = pendingNewItemIDs.contains(selectedID)
+
+        // Publish the next valid selection before removing the current item.
+        setSelectedItemID(nextSelection)
+        draftItemsByID.removeValue(forKey: selectedID)
+        pendingNewItemIDs.remove(selectedID)
+        editingItemIDs.remove(selectedID)
+        items.remove(at: index)
+
+        #if DEBUG
+        print("[CatalogDelete] tab=\(tab.rawValue) deletedID=\(selectedID) remaining=\(items.count) selectedID=\(String(describing: selectedItemID))")
+        #endif
+
+        if !isPendingNewItem {
+            var savedItems = userDefaults.items(for: tab)
+            savedItems.removeAll { $0.id == selectedID }
             userDefaults.saveItems(savedItems, for: tab)
         }
-
-        draftItemsByID.removeValue(forKey: selectedID)
-        pendingNewItemIDs.removeAll { $0 == selectedID }
-        editingItemIDs.removeAll { $0 == selectedID }
-
-        selectedItemID = nextSelection
-        userDefaults.saveSelectedItemID(nextSelection, for: tab)
-        primeDraftIfNeeded(for: nextSelection)
-        scheduleViewUpdate()
     }
 
     func beginEditingSelectedItem() {
         guard let selectedID = selectedItemID else { return }
-        primeDraftIfNeeded(for: selectedID)
-        guard !editingItemIDs.contains(selectedID) else { return }
-        editingItemIDs.append(selectedID)
+
+        if draftItemsByID[selectedID] == nil,
+           let item = items.first(where: { $0.id == selectedID }) {
+            draftItemsByID[selectedID] = item
+        }
+
+        editingItemIDs.insert(selectedID)
     }
 
     func saveSelectedItem() {
@@ -152,6 +151,7 @@ class BaseCatalogTabViewModel: ObservableObject, CatalogTabViewModelProtocol {
             return
         }
 
+
         var savedItems = userDefaults.items(for: tab)
         if let savedIndex = savedItems.firstIndex(where: { $0.id == selectedID }) {
             savedItems[savedIndex] = draftItem
@@ -159,10 +159,15 @@ class BaseCatalogTabViewModel: ObservableObject, CatalogTabViewModelProtocol {
             savedItems.append(draftItem)
         }
 
-        pendingNewItemIDs.removeAll { $0 == selectedID }
-        editingItemIDs.removeAll { $0 == selectedID }
+        if let itemIndex = items.firstIndex(where: { $0.id == selectedID }) {
+            items[itemIndex] = draftItem
+        } else {
+            items.append(draftItem)
+        }
+
         userDefaults.saveItems(savedItems, for: tab)
-        scheduleViewUpdate()
+        pendingNewItemIDs.remove(selectedID)
+        editingItemIDs.remove(selectedID)
     }
 
     func summaryText(for item: CatalogItem) -> String {
@@ -173,21 +178,8 @@ class BaseCatalogTabViewModel: ObservableObject, CatalogTabViewModelProtocol {
         CatalogItem(title: "新規項目", content: "")
     }
 
-    private func primeDraftIfNeeded(for id: UUID?) {
-        guard
-            let id,
-            draftItemsByID[id] == nil,
-            let savedItem = userDefaults.items(for: tab).first(where: { $0.id == id })
-        else {
-            return
-        }
-
-        draftItemsByID[id] = savedItem
-    }
-
-    func scheduleViewUpdate() {
-        DispatchQueue.main.async {
-            self.objectWillChange.send()
-        }
+    private func setSelectedItemID(_ id: UUID?) {
+        selectedItemID = id
+        userDefaults.saveSelectedItemID(id, for: tab)
     }
 }
