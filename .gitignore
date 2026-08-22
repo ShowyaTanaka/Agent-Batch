@@ -55,6 +55,7 @@ playground.xcworkspace
 # .swiftpm
 
 .build/
+.derivedData/
 
 .DS_Store
 

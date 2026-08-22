@@ -40,8 +40,18 @@ struct ContentView<
                     SkillsTabView(viewModel: skillsViewModel)
                 }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .frame(minWidth: 900, minHeight: 560)
+        .frame(
+            minWidth: 900,
+            maxWidth: .infinity,
+            minHeight: 560,
+            maxHeight: .infinity,
+            alignment: .top
+        )
+        .transaction { transaction in
+            transaction.animation = nil
+        }
     }
 }
 
