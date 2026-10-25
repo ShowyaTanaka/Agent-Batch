@@ -8,16 +8,16 @@ import SwiftUI
 
 @main
 struct Agent_BatchApp: App {
-    private let userDefaults: CatalogUserDefaultsMock
+    private let repository: CatalogInMemoryRepository
     private let mcpViewModel: MCPListTabViewModel
     private let scheduledViewModel: ScheduledJobsTabViewModel
     private let skillsViewModel: SkillsTabViewModel
 
     init() {
-        userDefaults = CatalogUserDefaultsMock()
-        mcpViewModel = MCPListTabViewModel(userDefaults: userDefaults)
-        scheduledViewModel = ScheduledJobsTabViewModel(userDefaults: userDefaults)
-        skillsViewModel = SkillsTabViewModel(userDefaults: userDefaults)
+        repository = CatalogInMemoryRepository()
+        mcpViewModel = MCPListTabViewModel(repository: repository)
+        scheduledViewModel = ScheduledJobsTabViewModel(repository: repository)
+        skillsViewModel = SkillsTabViewModel(repository: repository)
     }
 
     var body: some Scene {

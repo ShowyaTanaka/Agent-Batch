@@ -77,23 +77,23 @@ struct ReadOnlyEditorView: View {
     }
 }
 
-struct CatalogSidebarList: View {
-    let items: [CatalogItem]
+struct CatalogSidebarList<Entity: CatalogEntity>: View {
+    let entities: [Entity]
     @Binding var selection: UUID?
-    let summaryText: (CatalogItem) -> String
+    let summaryText: (Entity) -> String
 
     var body: some View {
         ScrollView {
             VStack(spacing: 0) {
-                ForEach(items) { item in
+                ForEach(entities) { entity in
                     Button {
-                        selection = item.id
+                        selection = entity.id
                     } label: {
                         VStack(alignment: .leading, spacing: 4) {
-                            Text(item.title)
+                            Text(entity.title)
                                 .font(.headline)
-                                .accessibilityIdentifier("catalog-item-title-\(item.title)")
-                            Text(summaryText(item))
+                                .accessibilityIdentifier("catalog-entity-title-\(entity.title)")
+                            Text(summaryText(entity))
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
                                 .lineLimit(1)
@@ -105,7 +105,7 @@ struct CatalogSidebarList: View {
                     }
                     .buttonStyle(.plain)
                     .background(
-                        selection == item.id
+                        selection == entity.id
                             ? Color.accentColor.opacity(0.16)
                             : Color.clear
                     )
@@ -161,10 +161,10 @@ struct ListActionBar: View {
     }
 }
 
-struct RelatedItemsSelectionView: View {
+struct RelatedEntitiesSelectionView: View {
     let title: String
     let options: [String]
-    @Binding var selectedItems: [String]
+    @Binding var selectedEntities: [String]
     let isEnabled: Bool
 
     var body: some View {
@@ -179,8 +179,8 @@ struct RelatedItemsSelectionView: View {
                             toggleSelection(for: option)
                         } label: {
                             HStack(spacing: 10) {
-                                Image(systemName: selectedItems.contains(option) ? "checkmark.circle.fill" : "circle")
-                                    .foregroundStyle(selectedItems.contains(option) ? Color.accentColor : .secondary)
+                                Image(systemName: selectedEntities.contains(option) ? "checkmark.circle.fill" : "circle")
+                                    .foregroundStyle(selectedEntities.contains(option) ? Color.accentColor : .secondary)
 
                                 Text(option)
                                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -209,10 +209,10 @@ struct RelatedItemsSelectionView: View {
     }
 
     private func toggleSelection(for option: String) {
-        if selectedItems.contains(option) {
-            selectedItems.removeAll { $0 == option }
+        if selectedEntities.contains(option) {
+            selectedEntities.removeAll { $0 == option }
         } else {
-            selectedItems.append(option)
+            selectedEntities.append(option)
         }
     }
 }

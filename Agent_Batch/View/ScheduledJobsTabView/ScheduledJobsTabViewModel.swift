@@ -6,33 +6,33 @@
 
 import Foundation
 
-protocol ScheduledJobsTabViewModelProtocol: CatalogTabViewModelProtocol {
+protocol ScheduledJobsTabViewModelProtocol: CatalogTabViewModelProtocol where Entity == TaskCatalogEntity {
     var availableSkillTitles: [String] { get }
     var availableMCPTitles: [String] { get }
 }
 
-final class ScheduledJobsTabViewModel: BaseCatalogTabViewModel, ScheduledJobsTabViewModelProtocol {
-    private let userDefaultsStore: any CatalogUserDefaultsStoreProtocol
+final class ScheduledJobsTabViewModel: BaseCatalogTabViewModel<TaskCatalogEntity>, ScheduledJobsTabViewModelProtocol {
+    private let relatedEntityRepository: any MCPRepositoryProtocol & SkillRepositoryProtocol
 
-    init(userDefaults: any CatalogUserDefaultsStoreProtocol) {
-        self.userDefaultsStore = userDefaults
-        super.init(tab: .scheduledJobs, userDefaults: userDefaults)
+    init(repository: any TaskRepositoryProtocol & MCPRepositoryProtocol & SkillRepositoryProtocol) {
+        self.relatedEntityRepository = repository
+        super.init(loadEntities: { repository.taskEntities() }, persistEntities: { repository.saveTaskEntities($0) }, loadSelectedEntityID: { repository.taskEntities().first { repository.selectedEntityID(for: $0) != nil }?.id }, persistSelectedEntityID: { repository.saveSelectedEntityID($0, for: $1) })
     }
 
     var availableSkillTitles: [String] {
-        userDefaultsStore.items(for: .skills).map(\.title)
+        relatedEntityRepository.skillEntities().map(\.title)
     }
 
     var availableMCPTitles: [String] {
-        userDefaultsStore.items(for: .mcpList).map(\.title)
+        relatedEntityRepository.mcpEntities().map(\.title)
     }
 
-    override func summaryText(for item: CatalogItem) -> String {
-        item.description
+    override func summaryText(for entity: TaskCatalogEntity) -> String {
+        entity.description
     }
 
-    override func makeNewItem() -> CatalogItem {
-        CatalogItem(
+    override func makeNewEntity() -> TaskCatalogEntity {
+        TaskCatalogEntity(
             title: "新しい定期実行",
             description: "概要を入力してください。",
             content: "実行するプロンプトを入力してください。"

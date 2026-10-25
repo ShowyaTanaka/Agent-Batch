@@ -57,12 +57,12 @@ struct ContentView<
 
 struct ContentView_Previews: PreviewProvider {
     static var previews: some View {
-        let userDefaults = CatalogUserDefaultsMock()
+        let repository = CatalogInMemoryRepository()
 
         ContentView(
-            mcpViewModel: MCPListTabViewModel(userDefaults: userDefaults),
-            scheduledViewModel: ScheduledJobsTabViewModel(userDefaults: userDefaults),
-            skillsViewModel: SkillsTabViewModel(userDefaults: userDefaults)
+            mcpViewModel: MCPListTabViewModel(repository: repository),
+            scheduledViewModel: ScheduledJobsTabViewModel(repository: repository),
+            skillsViewModel: SkillsTabViewModel(repository: repository)
         )
     }
 }

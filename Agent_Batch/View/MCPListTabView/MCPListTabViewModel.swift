@@ -6,19 +6,19 @@
 
 import Foundation
 
-protocol MCPListTabViewModelProtocol: CatalogTabViewModelProtocol {}
+protocol MCPListTabViewModelProtocol: CatalogTabViewModelProtocol where Entity == MCPCatalogEntity {}
 
-final class MCPListTabViewModel: BaseCatalogTabViewModel, MCPListTabViewModelProtocol {
-    init(userDefaults: any CatalogUserDefaultsStoreProtocol) {
-        super.init(tab: .mcpList, userDefaults: userDefaults)
+final class MCPListTabViewModel: BaseCatalogTabViewModel<MCPCatalogEntity>, MCPListTabViewModelProtocol {
+    init(repository: any MCPRepositoryProtocol) {
+        super.init(loadEntities: { repository.mcpEntities() }, persistEntities: { repository.saveMCPEntities($0) }, loadSelectedEntityID: { repository.mcpEntities().first { repository.selectedEntityID(for: $0) != nil }?.id }, persistSelectedEntityID: { repository.saveSelectedEntityID($0, for: $1) })
     }
 
-    override func summaryText(for item: CatalogItem) -> String {
-        item.description
+    override func summaryText(for entity: MCPCatalogEntity) -> String {
+        entity.description
     }
 
-    override func makeNewItem() -> CatalogItem {
-        CatalogItem(
+    override func makeNewEntity() -> MCPCatalogEntity {
+        MCPCatalogEntity(
             title: "新しいMCP",
             description: "概要を入力してください。",
             content: """

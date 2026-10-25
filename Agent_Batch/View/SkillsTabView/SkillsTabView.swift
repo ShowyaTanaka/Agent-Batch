@@ -15,28 +15,28 @@ struct SkillsTabView<ViewModel: SkillsTabViewModelProtocol>: View {
             VStack(spacing: 0) {
                 ListActionBar(
                     onAdd: {
-                        viewModel.addItem()
-                        listSelection = viewModel.selectedItemID
+                        viewModel.addEntity()
+                        listSelection = viewModel.selectedEntityID
                     },
                     onDelete: {
-                        viewModel.deleteSelectedItem()
-                        listSelection = viewModel.selectedItemID
+                        viewModel.deleteSelectedEntity()
+                        listSelection = viewModel.selectedEntityID
                     },
-                    canDelete: !viewModel.items.isEmpty && viewModel.canDeleteSelectedItem
+                    canDelete: !viewModel.entities.isEmpty && viewModel.canDeleteSelectedEntity
                 )
 
                 Divider()
 
                 CatalogSidebarList(
-                    items: viewModel.items,
+                    entities: viewModel.entities,
                     selection: $listSelection,
                     summaryText: viewModel.summaryText(for:)
                 )
                 .onAppear {
-                    listSelection = viewModel.selectedItemID
+                    listSelection = viewModel.selectedEntityID
                 }
                 .onChange(of: listSelection) { _, selectedID in
-                    viewModel.selectItem(selectedID)
+                    viewModel.selectEntity(selectedID)
                 }
                 .navigationTitle(CatalogTab.skills.rawValue)
             }
@@ -49,12 +49,14 @@ struct SkillsTabView<ViewModel: SkillsTabViewModelProtocol>: View {
             )
 
             SkillsDetailView(
-                item: viewModel.draftItemBinding,
-                isEditing: viewModel.isEditingSelectedItem,
-                canEdit: viewModel.canEditSelectedItem,
-                canSave: viewModel.canSaveSelectedItem,
-                onEdit: viewModel.beginEditingSelectedItem,
-                onSave: viewModel.saveSelectedItem
+                entity: viewModel.draftEntityBinding,
+                isEditing: viewModel.isEditingSelectedEntity,
+                canEdit: viewModel.canEditSelectedEntity,
+                canSave: viewModel.canSaveSelectedEntity,
+                onEdit: viewModel.beginEditingSelectedEntity,
+                onSave: {
+                    viewModel.onSave()
+                }
             )
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -62,7 +64,7 @@ struct SkillsTabView<ViewModel: SkillsTabViewModelProtocol>: View {
 }
 
 private struct SkillsDetailView: View {
-    @Binding var item: CatalogItem?
+    @Binding var entity: SkillCatalogEntity?
     let isEditing: Bool
     let canEdit: Bool
     let canSave: Bool
@@ -70,7 +72,7 @@ private struct SkillsDetailView: View {
     let onSave: () -> Void
 
     var body: some View {
-        if let itemBinding = Binding($item) {
+        if let entityBinding = Binding($entity) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     HStack {
@@ -91,11 +93,11 @@ private struct SkillsDetailView: View {
                         Text("タイトル")
                             .font(.headline)
                         if isEditing {
-                            TextField("タイトルを入力", text: itemBinding.title)
+                            TextField("タイトルを入力", text: entityBinding.title)
                                 .textFieldStyle(.plain)
                                 .editableFieldContainer(isEditing: true)
                         } else {
-                            ReadOnlyFieldView(text: itemBinding.wrappedValue.title, placeholder: "タイトルを入力")
+                            ReadOnlyFieldView(text: entityBinding.wrappedValue.title, placeholder: "タイトルを入力")
                         }
                     }
 
@@ -103,11 +105,11 @@ private struct SkillsDetailView: View {
                         Text("詳細")
                             .font(.headline)
                         if isEditing {
-                            TextField("詳細を入力", text: itemBinding.detail)
+                            TextField("詳細を入力", text: entityBinding.detail)
                                 .textFieldStyle(.plain)
                                 .editableFieldContainer(isEditing: true)
                         } else {
-                            ReadOnlyFieldView(text: itemBinding.wrappedValue.detail, placeholder: "詳細を入力")
+                            ReadOnlyFieldView(text: entityBinding.wrappedValue.detail, placeholder: "詳細を入力")
                         }
                     }
 
@@ -115,7 +117,7 @@ private struct SkillsDetailView: View {
                         Text("内容")
                             .font(.headline)
                         if isEditing {
-                            TextEditor(text: itemBinding.content)
+                            TextEditor(text: entityBinding.content)
                                 .font(.body)
                                 .padding(8)
                                 .frame(
@@ -127,7 +129,7 @@ private struct SkillsDetailView: View {
                                 .editableFieldContainer(isEditing: true)
                         } else {
                             ReadOnlyEditorView(
-                                text: itemBinding.wrappedValue.content,
+                                text: entityBinding.wrappedValue.content,
                                 placeholder: "内容を入力",
                                 minHeight: 240
                             )

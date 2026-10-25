@@ -15,28 +15,28 @@ struct MCPListTabView<ViewModel: MCPListTabViewModelProtocol>: View {
             VStack(spacing: 0) {
                 ListActionBar(
                     onAdd: {
-                        viewModel.addItem()
-                        listSelection = viewModel.selectedItemID
+                        viewModel.addEntity()
+                        listSelection = viewModel.selectedEntityID
                     },
                     onDelete: {
-                        viewModel.deleteSelectedItem()
-                        listSelection = viewModel.selectedItemID
+                        viewModel.deleteSelectedEntity()
+                        listSelection = viewModel.selectedEntityID
                     },
-                    canDelete: !viewModel.items.isEmpty && viewModel.canDeleteSelectedItem
+                    canDelete: !viewModel.entities.isEmpty && viewModel.canDeleteSelectedEntity
                 )
 
                 Divider()
 
                 CatalogSidebarList(
-                    items: viewModel.items,
+                    entities: viewModel.entities,
                     selection: $listSelection,
                     summaryText: viewModel.summaryText(for:)
                 )
                 .onAppear {
-                    listSelection = viewModel.selectedItemID
+                    listSelection = viewModel.selectedEntityID
                 }
                 .onChange(of: listSelection) { _, selectedID in
-                    viewModel.selectItem(selectedID)
+                    viewModel.selectEntity(selectedID)
                 }
                 .navigationTitle(CatalogTab.mcpList.rawValue)
             }
@@ -49,12 +49,14 @@ struct MCPListTabView<ViewModel: MCPListTabViewModelProtocol>: View {
             )
 
             MCPListDetailView(
-                item: viewModel.draftItemBinding,
-                isEditing: viewModel.isEditingSelectedItem,
-                canEdit: viewModel.canEditSelectedItem,
-                canSave: viewModel.canSaveSelectedItem,
-                onEdit: viewModel.beginEditingSelectedItem,
-                onSave: viewModel.saveSelectedItem
+                entity: viewModel.draftEntityBinding,
+                isEditing: viewModel.isEditingSelectedEntity,
+                canEdit: viewModel.canEditSelectedEntity,
+                canSave: viewModel.canSaveSelectedEntity,
+                onEdit: viewModel.beginEditingSelectedEntity,
+                onSave: {
+                    viewModel.onSave()
+                }
             )
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -62,7 +64,7 @@ struct MCPListTabView<ViewModel: MCPListTabViewModelProtocol>: View {
 }
 
 private struct MCPListDetailView: View {
-    @Binding var item: CatalogItem?
+    @Binding var entity: MCPCatalogEntity?
     let isEditing: Bool
     let canEdit: Bool
     let canSave: Bool
@@ -70,7 +72,7 @@ private struct MCPListDetailView: View {
     let onSave: () -> Void
 
     var body: some View {
-        if let itemBinding = Binding($item) {
+        if let entityBinding = Binding($entity) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     HStack {
@@ -91,11 +93,11 @@ private struct MCPListDetailView: View {
                         Text("タイトル")
                             .font(.headline)
                         if isEditing {
-                            TextField("タイトルを入力", text: itemBinding.title)
+                            TextField("タイトルを入力", text: entityBinding.title)
                                 .textFieldStyle(.plain)
                                 .editableFieldContainer(isEditing: true)
                         } else {
-                            ReadOnlyFieldView(text: itemBinding.wrappedValue.title, placeholder: "タイトルを入力")
+                            ReadOnlyFieldView(text: entityBinding.wrappedValue.title, placeholder: "タイトルを入力")
                         }
                     }
 
@@ -103,11 +105,11 @@ private struct MCPListDetailView: View {
                         Text("概要")
                             .font(.headline)
                         if isEditing {
-                            TextField("概要を入力", text: itemBinding.description)
+                            TextField("概要を入力", text: entityBinding.description)
                                 .textFieldStyle(.plain)
                                 .editableFieldContainer(isEditing: true)
                         } else {
-                            ReadOnlyFieldView(text: itemBinding.wrappedValue.description, placeholder: "概要を入力")
+                            ReadOnlyFieldView(text: entityBinding.wrappedValue.description, placeholder: "概要を入力")
                         }
                     }
 
@@ -115,7 +117,7 @@ private struct MCPListDetailView: View {
                         Text("内容")
                             .font(.headline)
                         if isEditing {
-                            TextEditor(text: itemBinding.content)
+                            TextEditor(text: entityBinding.content)
                                 .font(.body)
                                 .padding(8)
                                 .frame(
@@ -127,7 +129,7 @@ private struct MCPListDetailView: View {
                                 .editableFieldContainer(isEditing: true)
                         } else {
                             ReadOnlyEditorView(
-                                text: itemBinding.wrappedValue.content,
+                                text: entityBinding.wrappedValue.content,
                                 placeholder: "内容を入力",
                                 minHeight: 240
                             )

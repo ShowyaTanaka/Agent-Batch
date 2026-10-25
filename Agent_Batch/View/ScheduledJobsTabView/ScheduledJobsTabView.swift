@@ -15,28 +15,28 @@ struct ScheduledJobsTabView<ViewModel: ScheduledJobsTabViewModelProtocol>: View 
             VStack(spacing: 0) {
                 ListActionBar(
                     onAdd: {
-                        viewModel.addItem()
-                        listSelection = viewModel.selectedItemID
+                        viewModel.addEntity()
+                        listSelection = viewModel.selectedEntityID
                     },
                     onDelete: {
-                        viewModel.deleteSelectedItem()
-                        listSelection = viewModel.selectedItemID
+                        viewModel.deleteSelectedEntity()
+                        listSelection = viewModel.selectedEntityID
                     },
-                    canDelete: !viewModel.items.isEmpty && viewModel.canDeleteSelectedItem
+                    canDelete: !viewModel.entities.isEmpty && viewModel.canDeleteSelectedEntity
                 )
 
                 Divider()
 
                 CatalogSidebarList(
-                    items: viewModel.items,
+                    entities: viewModel.entities,
                     selection: $listSelection,
                     summaryText: viewModel.summaryText(for:)
                 )
                 .onAppear {
-                    listSelection = viewModel.selectedItemID
+                    listSelection = viewModel.selectedEntityID
                 }
                 .onChange(of: listSelection) { _, selectedID in
-                    viewModel.selectItem(selectedID)
+                    viewModel.selectEntity(selectedID)
                 }
                 .navigationTitle(CatalogTab.scheduledJobs.rawValue)
             }
@@ -49,14 +49,16 @@ struct ScheduledJobsTabView<ViewModel: ScheduledJobsTabViewModelProtocol>: View 
             )
 
             ScheduledJobsDetailView(
-                item: viewModel.draftItemBinding,
+                entity: viewModel.draftEntityBinding,
                 availableSkillTitles: viewModel.availableSkillTitles,
                 availableMCPTitles: viewModel.availableMCPTitles,
-                isEditing: viewModel.isEditingSelectedItem,
-                canEdit: viewModel.canEditSelectedItem,
-                canSave: viewModel.canSaveSelectedItem,
-                onEdit: viewModel.beginEditingSelectedItem,
-                onSave: viewModel.saveSelectedItem
+                isEditing: viewModel.isEditingSelectedEntity,
+                canEdit: viewModel.canEditSelectedEntity,
+                canSave: viewModel.canSaveSelectedEntity,
+                onEdit: viewModel.beginEditingSelectedEntity,
+                onSave: {
+                    viewModel.onSave()
+                }
             )
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -64,7 +66,7 @@ struct ScheduledJobsTabView<ViewModel: ScheduledJobsTabViewModelProtocol>: View 
 }
 
 private struct ScheduledJobsDetailView: View {
-    @Binding var item: CatalogItem?
+    @Binding var entity: TaskCatalogEntity?
     let availableSkillTitles: [String]
     let availableMCPTitles: [String]
     let isEditing: Bool
@@ -74,7 +76,7 @@ private struct ScheduledJobsDetailView: View {
     let onSave: () -> Void
 
     var body: some View {
-        if let itemBinding = Binding($item) {
+        if let entityBinding = Binding($entity) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     HStack {
@@ -95,11 +97,11 @@ private struct ScheduledJobsDetailView: View {
                         Text("タイトル")
                             .font(.headline)
                         if isEditing {
-                            TextField("タイトルを入力", text: itemBinding.title)
+                            TextField("タイトルを入力", text: entityBinding.title)
                                 .textFieldStyle(.plain)
                                 .editableFieldContainer(isEditing: true)
                         } else {
-                            ReadOnlyFieldView(text: itemBinding.wrappedValue.title, placeholder: "タイトルを入力")
+                            ReadOnlyFieldView(text: entityBinding.wrappedValue.title, placeholder: "タイトルを入力")
                         }
                     }
 
@@ -107,11 +109,11 @@ private struct ScheduledJobsDetailView: View {
                         Text("概要")
                             .font(.headline)
                         if isEditing {
-                            TextField("概要を入力", text: itemBinding.description)
+                            TextField("概要を入力", text: entityBinding.description)
                                 .textFieldStyle(.plain)
                                 .editableFieldContainer(isEditing: true)
                         } else {
-                            ReadOnlyFieldView(text: itemBinding.wrappedValue.description, placeholder: "概要を入力")
+                            ReadOnlyFieldView(text: entityBinding.wrappedValue.description, placeholder: "概要を入力")
                         }
                     }
 
@@ -119,7 +121,7 @@ private struct ScheduledJobsDetailView: View {
                         Text("プロンプト")
                             .font(.headline)
                         if isEditing {
-                            TextEditor(text: itemBinding.content)
+                            TextEditor(text: entityBinding.content)
                                 .font(.body)
                                 .padding(8)
                                 .frame(
@@ -131,7 +133,7 @@ private struct ScheduledJobsDetailView: View {
                                 .editableFieldContainer(isEditing: true)
                         } else {
                             ReadOnlyEditorView(
-                                text: itemBinding.wrappedValue.content,
+                                text: entityBinding.wrappedValue.content,
                                 placeholder: "実行するプロンプトを入力してください。",
                                 minHeight: 240
                             )
@@ -139,17 +141,17 @@ private struct ScheduledJobsDetailView: View {
                     }
 
                     HStack(alignment: .top, spacing: 16) {
-                        RelatedItemsSelectionView(
+                        RelatedEntitiesSelectionView(
                             title: "利用するSkill",
                             options: availableSkillTitles,
-                            selectedItems: itemBinding.relatedSkills,
+                            selectedEntities: entityBinding.relatedSkills,
                             isEnabled: isEditing
                         )
 
-                        RelatedItemsSelectionView(
+                        RelatedEntitiesSelectionView(
                             title: "利用するMCP",
                             options: availableMCPTitles,
-                            selectedItems: itemBinding.relatedMCPs,
+                            selectedEntities: entityBinding.relatedMCPs,
                             isEnabled: isEditing
                         )
                     }
